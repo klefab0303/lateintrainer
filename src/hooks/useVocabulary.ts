@@ -1,18 +1,38 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Vocabulary, PracticeResult, LessonStats } from "@/types/vocabulary";
+
+// localStorage keys
+const VOCABULARIES_KEY = "latin-vocab-vocabularies";
+const PRACTICE_RESULTS_KEY = "latin-vocab-practice-results";
+
+// Helper functions for localStorage
+function getVocabularies(): Vocabulary[] {
+  const data = localStorage.getItem(VOCABULARIES_KEY);
+  return data ? JSON.parse(data) : [];
+}
+
+function saveVocabularies(vocabularies: Vocabulary[]): void {
+  localStorage.setItem(VOCABULARIES_KEY, JSON.stringify(vocabularies));
+}
+
+function getPracticeResults(): PracticeResult[] {
+  const data = localStorage.getItem(PRACTICE_RESULTS_KEY);
+  return data ? JSON.parse(data) : [];
+}
+
+function savePracticeResults(results: PracticeResult[]): void {
+  localStorage.setItem(PRACTICE_RESULTS_KEY, JSON.stringify(results));
+}
+
+function generateId(): string {
+  return crypto.randomUUID();
+}
 
 export function useVocabularies() {
   return useQuery({
     queryKey: ["vocabularies"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("vocabularies")
-        .select("*")
-        .order("lesson_number", { ascending: true });
-      
-      if (error) throw error;
-      return data as Vocabulary[];
+      return getVocabularies().sort((a, b) => a.lesson_number - b.lesson_number);
     },
   });
 }
@@ -41,18 +61,22 @@ export function useUploadVocabularies() {
   
   return useMutation({
     mutationFn: async (vocabularies: Omit<Vocabulary, "id" | "created_at">[]) => {
-      // First delete all existing vocabularies
-      await supabase.from("vocabularies").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      // Create full vocabulary objects with IDs and timestamps
+      const fullVocabularies: Vocabulary[] = vocabularies.map((v) => ({
+        ...v,
+        id: generateId(),
+        created_at: new Date().toISOString(),
+      }));
       
-      // Then insert new ones
-      const { error } = await supabase
-        .from("vocabularies")
-        .insert(vocabularies);
+      // Replace all vocabularies
+      saveVocabularies(fullVocabularies);
       
-      if (error) throw error;
+      // Clear practice results when new vocabularies are uploaded
+      savePracticeResults([]);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vocabularies"] });
+      queryClient.invalidateQueries({ queryKey: ["practice_results"] });
     },
   });
 }
@@ -61,13 +85,9 @@ export function usePracticeResults() {
   return useQuery({
     queryKey: ["practice_results"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("practice_results")
-        .select("*")
-        .order("practiced_at", { ascending: false });
-      
-      if (error) throw error;
-      return data as PracticeResult[];
+      return getPracticeResults().sort(
+        (a, b) => new Date(b.practiced_at).getTime() - new Date(a.practiced_at).getTime()
+      );
     },
   });
 }
@@ -77,11 +97,15 @@ export function useRecordPracticeResult() {
   
   return useMutation({
     mutationFn: async ({ vocabulary_id, known }: { vocabulary_id: string; known: boolean }) => {
-      const { error } = await supabase
-        .from("practice_results")
-        .insert({ vocabulary_id, known });
-      
-      if (error) throw error;
+      const results = getPracticeResults();
+      const newResult: PracticeResult = {
+        id: generateId(),
+        vocabulary_id,
+        known,
+        practiced_at: new Date().toISOString(),
+      };
+      results.push(newResult);
+      savePracticeResults(results);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["practice_results"] });
