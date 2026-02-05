@@ -7,7 +7,7 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   // For GitHub Pages: set base to your repo name (e.g., "/repo-name/")
   // Leave as "/" for Lovable preview or custom domains
-  base: mode === "production" ? "/" : "/",
+  base: mode === "production" ? "/lateintrainer/" : "/",
   server: {
     host: "::",
     port: 8080,
