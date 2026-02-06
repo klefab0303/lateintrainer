@@ -80,7 +80,13 @@ function setupEventListeners() {
   document.getElementById("unknown-btn").addEventListener("click", () => answerCard(false));
   
   // Results
-  document.getElementById("practice-again-btn").addEventListener("click", startPractice);
+  document.getElementById("practice-again-btn").addEventListener("click", () => {
+    if (selectedLessons.length === 0) {
+      showSelectView(); // Go back to selection if no lessons selected
+    } else {
+      startPractice();
+    }
+  });
   document.getElementById("back-home-btn").addEventListener("click", showHomeView);
 }
 
@@ -125,6 +131,7 @@ function handleCSVUpload(event) {
       if (newVocabs.length > 0) {
         vocabularies = newVocabs;
         practiceResults = [];
+        selectedLessons = []; // Reset selected lessons when new CSV is uploaded
         saveVocabularies();
         savePracticeResults();
         updateStats();
@@ -297,7 +304,7 @@ function showCard() {
   document.getElementById("german-word").textContent = card.german_translation;
   
   // Update progress
-  const progress = ((currentCardIndex) / currentPracticeCards.length) * 100;
+  const progress = ((currentCardIndex + 1) / currentPracticeCards.length) * 100;
   document.getElementById("progress-text").textContent = 
     `Karte ${currentCardIndex + 1} von ${currentPracticeCards.length}`;
   document.getElementById("progress-fill").style.width = progress + "%";
@@ -350,4 +357,7 @@ function showResults() {
   document.getElementById("result-known").textContent = sessionResults.known;
   document.getElementById("result-unknown").textContent = sessionResults.unknown;
   document.getElementById("result-percentage").textContent = percentage + "%";
+  
+  // Update global stats
+  updateStats();
 }
