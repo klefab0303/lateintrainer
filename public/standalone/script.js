@@ -115,7 +115,9 @@ function handleCSVUpload(event) {
         console.log(`Zeile ${i + 1}:`, parts);
         
         if (parts.length >= 4) {
-          const lessonStr = parts[3].trim();
+          // IMPORTANT: Always take the LAST element as lesson number
+          // because translations may contain unquoted semicolons that create extra parts
+          const lessonStr = parts[parts.length - 1].trim();
           const lessonNum = parseInt(lessonStr, 10);
           
           // Skip if lesson number is invalid
@@ -124,11 +126,15 @@ function handleCSVUpload(event) {
             continue;
           }
           
+          // Combine all middle parts as the German translation (in case of extra splits)
+          const germanParts = parts.slice(2, parts.length - 1);
+          const germanTranslation = germanParts.join("; ").trim();
+          
           newVocabs.push({
             id: generateId(),
             latin_word: parts[0].trim(),
             forms: parts[1].trim() || null,
-            german_translation: parts[2].trim(),
+            german_translation: germanTranslation,
             lesson_number: lessonNum,
             created_at: new Date().toISOString()
           });
